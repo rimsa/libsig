@@ -6,6 +6,9 @@ include $(top_srcdir)/Makefile.tool.am
 
 pkginclude_HEADERS =
 
+bin_SCRIPTS = \
+	libsig_symbols
+
 noinst_HEADERS = \
 	global.h
 

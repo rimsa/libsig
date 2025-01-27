@@ -56,5 +56,5 @@ command line argument.
     0x4011f6b,1
 
 In this example, the addresses `0x1090d0` and `0x1090b0` corresponds, respectively, to the
-`atoi` and `printf` libc functions. As can be observed, each one of them was called 6 times for
-this execution.
+`atoi` and `printf` libc functions (hint: use the [libsig_symbols](libsig_symbols) script to
+find those names). As can be observed, each one of them was called 6 times for this execution.
