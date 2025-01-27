@@ -1,0 +1,60 @@
+#!/bin/bash
+
+function fatal() {
+	echo "error: $@" 1>&2;
+	exit 1;
+}
+
+function mac_symbols() {
+	program="$1";
+
+	echo "#name,start,end";
+
+	otool -v -x "${program}" | \
+		gawk '\
+			function show() {\
+				if (addr)\
+					printf "%s,0x%s,0x%s\n", fnname, start, addr;\
+			}\
+			$1 ~ /^[[:digit:]]/ { gsub("^0*", "", $1); addr=$1; }\
+			start == ""         { start=addr; }\
+			/:$/                { show(); gsub(":$", "", $1); fnname=$1; start=""; }\
+			END                 { show(); }\
+		';
+
+	otool -I -v "${program}" | \
+		sed -E -n 's/^0x0*([[:xdigit:]]+)[[:space:]]*[[:alnum:]]*[[:space:]](.*)$/\2,0x\1,0x\1/p';
+}
+
+function linux_symbols() {
+	program="$1";
+
+	echo "#name,start,end";
+
+	objdump -d "${program}" | \
+		gawk '\
+			function show() {\
+				if (addr)\
+					printf "%s,%s,%s\n", fnname,start,addr;\
+			}\
+			/>:/                          { show(); gsub("^0*", "", $1); start="0x"$1; gsub("[<>:]", "", $2); fnname=$2; }\
+			/^[[:space:]]*[[:xdigit:]]*:/ { gsub(":$", "", $1); addr="0x"$1; }\
+			END                           { show(); }\
+		';
+}
+
+if [ $# -ne 1 ]; then
+	echo "Usage: $0 [Binary program]";
+	exit 1;
+fi
+
+[ -r "$1" ] || fatal "Invalid binary program: $1";
+
+os="$(uname -s)";
+if [ "$os" == "Darwin" ]; then
+	mac_symbols "$1";
+elif [ "$os" == "Linux" ]; then
+	linux_symbols "$1";
+else
+	fatal "Unsupported system: $os";
+fi
