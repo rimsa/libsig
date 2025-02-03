@@ -59,7 +59,7 @@ extern Bool VG_(resolve_filename)(Int fd, const HChar** buf);
 #endif
 
 static
-void LSG_(add_instrumentation)(IRSB* sbOut, Addr addr, Bound bound) {
+void LSG_(add_instrumentation)(IRSB* sbOut, Addr addr, BoundType bound) {
 	addStmtToIRSB(sbOut, IRStmt_Dirty(unsafeIRDirty_0_N(2, "track_bound",
 					VG_(fnptr_to_fnentry)(LSG_(track_bound)),
 					mkIRExprVec_2(
@@ -74,7 +74,7 @@ static IRSB* LSG_(instrument)(VgCallbackClosure* closure, IRSB* sbIn,
 	Int i;
 	IRStmt* st;
 	IRSB* sbOut;
-	Bound current, last = Nobound;
+	BoundType current, last = Nobound;
 
 	if (gWordTy != hWordTy) {
 		/* We don't currently support this case. */
@@ -124,9 +124,7 @@ static IRSB* LSG_(instrument)(VgCallbackClosure* closure, IRSB* sbIn,
 						(VG_MIN_INSTR_SZB <= isize && isize <= VG_MAX_INSTR_SZB)
 								|| VG_CLREQ_SZB == isize);
 
-				current = cia >= LSG_(clo).bound_range.start &&
-					cia <= LSG_(clo).bound_range.end ?
-						Inbound : Outbound;
+				current = LSG_(addr2bound)(cia);
 				if (current != last) {
 					LSG_(add_instrumentation)(sbOut, cia, current);
 					last = current;
@@ -180,6 +178,7 @@ void finish(void) {
 	}
 
 	LSG_(destroy_threads)();
+	LSG_(clear_all_ranges)();
 }
 
 void LSG_(fini)(Int exitcode) {
@@ -207,21 +206,16 @@ static void update_range_from_text_section(void) {
 			continue;
 
 		addr = VG_(DebugInfo_get_text_avma)(di);
-		if (!addr)
-			continue;
+		if (addr) {
+			size = VG_(DebugInfo_get_text_size)(di);
+			LSG_ASSERT(size > 0);
 
-		size = VG_(DebugInfo_get_text_size)(di);
-		LSG_ASSERT(size > 0);
-
-		LSG_(clo).bound_range.start = addr;
-		LSG_(clo).bound_range.end = addr + size;
-
-		// No need to search anymore.
-		break;
+			LSG_(add_new_range)(addr, size);
+		}
 	}
 
-	// Make sure we updated the range.
-	tl_assert(LSG_(clo).bound_range.start);
+	// Make sure we have at least one range.
+	tl_assert(LSG_(has_ranges)());
 }
 
 static void lsg_start_client_code_callback(ThreadId tid, ULong blocks_done) {
@@ -229,7 +223,7 @@ static void lsg_start_client_code_callback(ThreadId tid, ULong blocks_done) {
 	// based on the text section of the program.
 	// This test could not have been done in post_clo_init,
 	// since the program was not loaded yet.
-	if (!LSG_(clo).bound_range.start)
+	if (!LSG_(has_ranges)())
 		update_range_from_text_section();
 }
 

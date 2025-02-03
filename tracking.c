@@ -41,7 +41,7 @@
 static VgFile* outfile = 0;
 
 static
-const HChar* bound2str(Bound bound) {
+const HChar* bound2str(BoundType bound) {
 	switch (bound) {
 		case Nobound:
 			return "nobound";
@@ -54,8 +54,53 @@ const HChar* bound2str(Bound bound) {
 	}
 }
 
+Bool LSG_(has_ranges)(void) {
+	return LSG_(clo).ranges != 0;
+}
+
+void LSG_(add_new_range)(Addr addr, SizeT size) {
+	static BoundRange** last = &(LSG_(clo).ranges);
+
+	tl_assert(addr != 0);
+	tl_assert(size > 0);
+
+	*last = (BoundRange*)
+		LSG_MALLOC("lsg.tracking.anr.1", sizeof(BoundRange));
+	(*last)->start = addr;
+	(*last)->end = addr + size;
+	(*last)->next = 0;
+
+	LSG_DEBUG(3, "Added new range from 0x%lx to 0x%lx\n",
+		(*last)->start, (*last)->end);
+
+	last = &((*last)->next);
+}
+
+void LSG_(clear_all_ranges)(void) {
+	BoundRange* current = LSG_(clo).ranges;
+	while (current) {
+		BoundRange* tmp = current->next;
+		LSG_DATA_FREE(current, sizeof(BoundRange));
+		current = tmp;
+	}
+
+	LSG_(clo).ranges = 0;
+}
+
+BoundType LSG_(addr2bound)(Addr addr) {
+	BoundRange* current = LSG_(clo).ranges;
+	while (current) {
+		if (addr >= current->start && addr <= current->end)
+			return Inbound;
+
+		current = current->next;
+	}
+
+	return Outbound;
+}
+
 VG_REGPARM(2)
-void LSG_(track_bound)(Addr addr, Bound bound) {
+void LSG_(track_bound)(Addr addr, BoundType bound) {
 	ThreadId tid;
 
 	/* This is needed because thread switches can not reliable be tracked

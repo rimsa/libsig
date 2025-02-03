@@ -47,22 +47,21 @@ Bool LSG_(process_cmd_line_option)(const HChar* arg) {
 
 	if VG_STR_CLO(arg, "--bound", opt) {
 		Addr addr;
-		SizeT length;
+		SizeT size;
 		HChar* tmp;
 
 		if ((tmp = VG_(strchr)(opt, '+'))) {
 			*tmp = 0;
-			length = VG_(strtoll10)(++tmp, 0);
+			size = VG_(strtoll10)(++tmp, 0);
 		} else {
-			length = 1;
+			size = 1;
 		}
-		LSG_ASSERT(length > 0);
+		LSG_ASSERT(size > 0);
 
 		addr = VG_(strtoull16)(opt, 0);
 		LSG_ASSERT(addr > 0);
 
-		LSG_(clo).bound_range.start = addr;
-		LSG_(clo).bound_range.end = addr + length;
+		LSG_(add_new_range)(addr, size);
 	}
 	else if VG_STR_CLO(arg, "--records", LSG_(clo).records_file) {}
 #if LSG_ENABLE_DEBUG
@@ -77,11 +76,11 @@ Bool LSG_(process_cmd_line_option)(const HChar* arg) {
 void LSG_(print_usage)(void) {
 	VG_(printf)(
 "\n   library signature options:\n"
-"    --bound=<address>[+<length>]   Define a range bound to track; if not defined, use the\n"
+"    --bound=<address>[+<size>]     Define a range bound to track; if not defined, use the\n"
 "                                   text section of the program as the bounding range\n"
-"                                   (This option can not be used multiple times)\n"
+"                                   (This option can be used multiple times)\n"
 "    --records=<f>                  The output file with all recorded bounds\n"
-"                                   (Use %%p to bind the pid to the file, e.g.: records-%%p.out)\n"
+"                                   (Use %%p to bind the pid to the file, e.g.: records-%%p.csv)\n"
 	);
 }
 
@@ -97,9 +96,7 @@ void LSG_(print_debug_usage)(void) {
 
 void LSG_(set_clo_defaults)(void) {
 	/* Default values for command line arguments */
-	LSG_(clo).bound_range.start = 0;
-	LSG_(clo).bound_range.end = 0;
-
+	LSG_(clo).ranges = 0;
 	LSG_(clo).records_file = 0;
 
 #if LSG_ENABLE_DEBUG

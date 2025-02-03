@@ -67,18 +67,26 @@ typedef
 		Inbound,    // This marks program code (i.e.: text section)
 		Outbound,   // This marks library code (everything that is not internal)
 	}
-	Bound;
+	BoundType;
 
 typedef struct _Record	Record;
 struct _Record {
 	Addr addr;
 #if RECORD_MODE == 3
-	Bound bound;
+	BoundType bound;
 #else
 	Int count;
 #endif
 
 	Record* next;
+};
+
+typedef struct _BoundRange	BoundRange;
+struct _BoundRange {
+	Addr start;
+	Addr end;
+
+	BoundRange* next;
 };
 
 /*------------------------------------------------------------*/
@@ -87,10 +95,7 @@ struct _Record {
 
 typedef struct _CommandLineOptions	CommandLineOptions;
 struct _CommandLineOptions {
-	struct {
-		Addr start;
-		Addr end;
-	} bound_range;
+	BoundRange* ranges;
 	const HChar* records_file;
 #if LSG_ENABLE_DEBUG
 	Int   verbose;
@@ -111,7 +116,7 @@ typedef struct _thread_info			thread_info;
  */
 typedef struct _exec_state exec_state;
 struct _exec_state {
-	Bound bound;
+	BoundType bound;
 	struct {
 		Record* head;
 		Record* last;
@@ -152,7 +157,11 @@ void LSG_(run_thread)(ThreadId tid);
 void LSG_(sync_current_thread)(void);
 
 /* from tracking.c */
-void LSG_(track_bound)(Addr addr, Bound bound) VG_REGPARM(2);
+Bool LSG_(has_ranges)(void);
+void LSG_(add_new_range)(Addr addr, SizeT size);
+void LSG_(clear_all_ranges)(void);
+BoundType LSG_(addr2bound)(Addr addr);
+void LSG_(track_bound)(Addr addr, BoundType bound) VG_REGPARM(2);
 void LSG_(dump_records)(const HChar* filename);
 
 /*------------------------------------------------------------*/
