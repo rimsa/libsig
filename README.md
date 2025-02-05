@@ -7,7 +7,7 @@ can be used as a runtime signature for a program.
 
 ## Building
 
-To build libsig, first download and unpack valgrind (3.24.0):
+To build libsig, first download and unpack valgrind (3.24.0).
 
     $ wget -qO - https://sourceware.org/pub/valgrind/valgrind-3.24.0.tar.bz2 | tar jxv
 
@@ -18,7 +18,7 @@ Apply a patch to add the tool in the compilation chain.
     $ git clone https://github.com/rimsa/libsig.git libsig
     $ patch -p1 < libsig/libsig.patch
 
-Build valgrind with libsig:
+Build valgrind with libsig.
 
     $ ./autogen.sh
     $ ./configure
@@ -27,11 +27,15 @@ Build valgrind with libsig:
 
 ## Testing
 
-Compile and use a test program that orders numbers given in the argument's list:
+Compile a test program that orders numbers given in the argument's list. libsig works even when all of its symbols are stripped.
 
     $ cd libsig/tests
-    $ gcc test.c
-    $ valgrind -q --tool=libsig --records=records.csv -- ./a.out 15 4 8 16 42 23
+    $ gcc -o test test.c
+    $ strip -s test
+
+Now use this tool to record the libraries signature of this program.
+
+    $ valgrind -q --tool=libsig --records=records.csv -- ./test 15 4 8 16 42 23
     4 8 15 16 23 42
 
 Since this plugin supports multithreaded programs, the output file contains a commented line
@@ -55,6 +59,25 @@ command line argument.
     0x109080,1
     0x4011f6b,1
 
-In this example, the addresses `0x1090d0` and `0x1090b0` corresponds, respectively, to the
-`atoi` and `printf` libc functions (hint: use the [libsig_symbols](libsig_symbols) script to
-find those names). As can be observed, each one of them was called 6 times for this execution.
+To translate addresses to library calls in the PLT section of a program, first
+use [libsig_symbols](libsig_symbols) to collect the program's symbols. Then, use the [libsig_translator](libsig_translator) to translate records file
+to symbol names.
+
+    $ libsig_symbols test > test.symbols
+    $ libsig_translator test.symbols records.csv
+    # Thread: 1
+    0x4001100,1
+    0x4873f90,1
+    .init,1
+    0x4874010,1
+    malloc@plt,1
+    atoi@plt,6
+    printf@plt,6
+    putchar@plt,1
+    free@plt,1
+    0x4874083,1
+    __cxa_finalize@plt,1
+    0x4011f6b,1
+
+In this example, we can see that the test program calls `malloc` and `free` once, converts strings to numbers via `atoi` 6 times, prints the numbers using `printf` 6 times and ends with a call to `putchar`
+to print the end of line.

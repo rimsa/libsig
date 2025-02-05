@@ -1,0 +1,41 @@
+#!/bin/bash
+
+function fatal() {
+	echo "error: $@" 1>&2;
+	exit 1;
+}
+
+if [ $# -ne 2 ]; then
+	echo "Usage: $0 [Symbols file] [Records file]";
+	exit 1;
+fi
+
+symbols="$1";
+[ -r "${symbols}" ] || fatal "Invalid symbols file: ${symbols}";
+
+records="$2";
+[ -r "${records}" ] || fatal "Invalid records file: ${records}";
+
+IFS=$'\n';
+names=();
+for entry in $(cat "${symbols}"); do
+	addr=${entry/,*};
+	name=${entry/*,};
+	names["${addr}"]="${name}";
+done
+
+for entry in $(cat "${records}"); do
+	if [[ $entry =~ ^# ]]; then
+		echo $entry;
+	else
+		addr=${entry/,*};
+		count=${entry/*,};
+
+		name=${names[${addr}]};
+		if [ -n "${name}" ]; then
+			echo "${name},${count}";
+		else
+			echo "${addr},${count}";
+		fi
+	fi
+done

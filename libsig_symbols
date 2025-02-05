@@ -6,11 +6,7 @@ function fatal() {
 }
 
 function mac_symbols() {
-	program="$1";
-
-	echo "#name,start,end";
-
-	otool -v -x "${program}" | \
+	${otool} -x -v "${1}" | \
 		gawk '\
 			function show() {\
 				if (addr)\
@@ -22,16 +18,12 @@ function mac_symbols() {
 			END                 { show(); }\
 		';
 
-	otool -I -v "${program}" | \
+	${otool} -I -v "${1}" | \
 		sed -E -n 's/^0x0*([[:xdigit:]]+)[[:space:]]*[[:alnum:]]*[[:space:]](.*)$/\2,0x\1,0x\1/p';
 }
 
 function linux_symbols() {
-	program="$1";
-
-	echo "#name,start,end";
-
-	objdump -d "${program}" | \
+	${objdump} -d "${1}" | \
 		gawk '\
 			function show() {\
 				if (addr)\
@@ -48,13 +40,44 @@ if [ $# -ne 1 ]; then
 	exit 1;
 fi
 
-[ -r "$1" ] || fatal "Invalid binary program: $1";
+# Compensate valgrind's load address when PIE is used.
+# This may vary dependending on the architecture.
+: ${ADDR_OFFSET_COMPENSATION:=0x108000}
+
+program="$1";
+[ -x "${program}" ] || fatal "Invalid binary program: ${program}";
 
 os="$(uname -s)";
 if [ "$os" == "Darwin" ]; then
-	mac_symbols "$1";
+	otool=$(which otool);
+	[ -x "${otool}" ] || fatal "The otool is required";
+
+	${otool} -h -v "${program}" 2>/dev/null | grep -q 'PIE';
+	[ $? -eq 0 ] && is_pie=1 || is_pie=0;
+
+	funct=mac_symbols;
 elif [ "$os" == "Linux" ]; then
-	linux_symbols "$1";
+	readelf=$(which readelf);
+	[ -x "${readelf}" ] || fatal "The readelf is required";
+
+	objdump=$(which objdump);
+	[ -x "${objdump}" ] || fatal "The objdump is required";
+
+	${readelf} -h "${program}" 2>/dev/null | grep -q 'Type:[[:space:]]*DYN';
+	[ $? -eq 0 ] && is_pie=1 || is_pie=0;
+
+	funct=linux_symbols;
 else
 	fatal "Unsupported system: $os";
 fi
+
+for entry in $(eval "${funct}" "${program}"); do
+	name=${entry/,*};
+	addr=$(echo ${entry#*,} | cut -f1 -d',');
+	if [ ${is_pie} -eq 1 ]; then
+		tmp=$(echo "${addr:2}" | tr '[[:lower:]]' '[[:upper:]]');
+		addr="0x"$(echo "obase=16;ibase=16;${tmp}+${ADDR_OFFSET_COMPENSATION:2}" | bc -l | tr '[[:upper:]]' '[[:lower:]]');
+	fi
+
+	echo "${addr},${name}";
+done
