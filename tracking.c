@@ -177,7 +177,13 @@ static void process_thread(thread_info* t) {
 #if defined(RECORD_IN_AND_OUTBOUNDS)
 		VG_(fprintf)(outfile, "0x%lx,%s\n", record->addr, bound2str(record->bound));
 #else
-		VG_(fprintf)(outfile, "0x%lx,%d\n", record->addr, record->count);
+		if (LSG_(clo).coalesce)
+			VG_(fprintf)(outfile, "0x%lx,%d\n", record->addr, record->count);
+		else {
+			UInt i;
+			for (i = 0; i < record->count; i++)
+				VG_(fprintf)(outfile, "0x%lx\n", record->addr);
+		}
 #endif
 		record = record->next;
 	}

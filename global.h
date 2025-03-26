@@ -97,6 +97,9 @@ typedef struct _CommandLineOptions	CommandLineOptions;
 struct _CommandLineOptions {
 	BoundRange* ranges;
 	const HChar* records_file;
+#if RECORD_MODE != 3
+	Bool coalesce;
+#endif
 #if LSG_ENABLE_DEBUG
 	Int   verbose;
 #endif

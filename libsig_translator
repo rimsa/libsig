@@ -28,14 +28,16 @@ for entry in $(cat "${records}"); do
 	if [[ $entry =~ ^# ]]; then
 		echo $entry;
 	else
-		addr=${entry/,*};
-		count=${entry/*,};
+		if [[ $entry =~ , ]]; then
+			addr=${entry/,*};
+			count=${entry/*,};
+		else
+			addr=${entry};
+			count=;
+		fi
 
 		name=${names[${addr}]};
-		if [ -n "${name}" ]; then
-			echo "${name},${count}";
-		else
-			echo "${addr},${count}";
-		fi
+		[ -n "${name}" ] && echo -n "${name}" || echo -n "${addr}";
+		[ -n "${count}" ] && echo ",${count}" || echo;
 	fi
 done

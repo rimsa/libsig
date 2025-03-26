@@ -46,38 +46,59 @@ command line argument.
 
     $ cat records.csv
     # Thread: 1
-    0x4001100,1
-    0x4873f90,1
-    0x109000,1
-    0x4874010,1
-    0x1090c0,1
-    0x1090d0,6
-    0x1090b0,6
-    0x1090a0,1
-    0x109090,1
-    0x4874083,1
-    0x109080,1
-    0x4011f6b,1
+    0x4001100
+    0x4873f90
+    0x109000
+    0x4874010
+    0x1090c0
+    0x1090d0
+    0x1090d0
+    0x1090d0
+    0x1090d0
+    0x1090d0
+    0x1090d0
+    0x1090b0
+    0x1090b0
+    0x1090b0
+    0x1090b0
+    0x1090b0
+    0x1090b0
+    0x1090a0
+    0x109090
+    0x4874083
+    0x109080
+    0x4011f6b
 
 To translate addresses to library calls in the PLT section of a program, first
-use [libsig_symbols](libsig_symbols) to collect the program's symbols. Then, use the [libsig_translator](libsig_translator) to translate records file
+use [libsig_symbols](libsig_symbols) to collect the program's symbols.
+Then, use the [libsig_translator](libsig_translator) to translate records file
 to symbol names.
 
     $ libsig_symbols test > test.symbols
     $ libsig_translator test.symbols records.csv
     # Thread: 1
-    0x4001100,1
-    0x4873f90,1
-    .init,1
-    0x4874010,1
-    malloc@plt,1
-    atoi@plt,6
-    printf@plt,6
-    putchar@plt,1
-    free@plt,1
-    0x4874083,1
-    __cxa_finalize@plt,1
-    0x4011f6b,1
+    0x4001100
+    0x4873f90
+    .init
+    0x4874010
+    malloc@plt
+    atoi@plt
+    atoi@plt
+    atoi@plt
+    atoi@plt
+    atoi@plt
+    atoi@plt
+    printf@plt
+    printf@plt
+    printf@plt
+    printf@plt
+    printf@plt
+    printf@plt
+    putchar@plt
+    free@plt
+    0x4874083
+    __cxa_finalize@plt
+    0x4011f6b
 
 In this example, we can see that the test program calls `malloc` and `free` once, converts strings to numbers via `atoi` 6 times, prints the numbers using `printf` 6 times and ends with a call to `putchar`
 to print the end of line.
